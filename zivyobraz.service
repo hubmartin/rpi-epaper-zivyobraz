@@ -1,0 +1,12 @@
+[Unit]
+Description=Epaper zivyobraz service
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/rpi-epaper-zivyobraz
+ExecStart=python3 zivyobraz.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
