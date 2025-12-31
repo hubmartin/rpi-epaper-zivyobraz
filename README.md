@@ -1,6 +1,11 @@
-# RPI AP slop clone of zivyobraz client
+# Clone of zivyobraz for RPI + e-paper
+
+**AI slop clone**
 
 Instead of ESP32 you can use RPI with e-paper.
+
+[zivyobraz.eu](http://zivyobraz.eu/)
+[original github repo](https://github.com/MultiTricker/zivyobraz-fw)
 
 ## Install service
 
