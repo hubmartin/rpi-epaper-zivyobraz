@@ -9,7 +9,6 @@ import io
 import logging
 import struct
 import time
-import uuid
 from typing import Optional, Tuple
 
 import requests
@@ -43,9 +42,34 @@ COLOR_BLACK = 0
 
 def get_mac_address() -> str:
     """Get MAC address of the device formatted as XX:XX:XX:XX:XX:XX."""
-    mac = uuid.getnode()
-    mac_str = ':'.join(('%012x' % mac)[i:i+2].upper() for i in range(0, 12, 2))
-    return mac_str
+    # Try to get MAC from wlan0 interface first, then eth0
+    for interface in ['wlan0', 'eth0']:
+        try:
+            with open(f'/sys/class/net/{interface}/address', 'r') as f:
+                mac = f.read().strip().upper()
+                if mac and mac != '00:00:00:00:00:00':
+                    return mac
+        except FileNotFoundError:
+            continue
+
+    # Fallback: try to find any non-loopback interface
+    import os
+    try:
+        for iface in os.listdir('/sys/class/net/'):
+            if iface == 'lo':
+                continue
+            try:
+                with open(f'/sys/class/net/{iface}/address', 'r') as f:
+                    mac = f.read().strip().upper()
+                    if mac and mac != '00:00:00:00:00:00':
+                        return mac
+            except BaseException:
+                continue
+    except BaseException:
+        pass
+
+    # Last resort fallback
+    return "00:00:00:00:00:00"
 
 
 def get_hostname() -> str:
@@ -103,7 +127,7 @@ class ZivyObrazClient:
             font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
             font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
             font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-        except:
+        except BaseException:
             font_large = ImageFont.load_default()
             font_medium = font_large
             font_small = font_large
@@ -170,7 +194,7 @@ class ZivyObrazClient:
             bbox = draw.textbbox((0, 0), qr_label, font=font_small)
             text_width = bbox[2] - bbox[0]
             draw.text((qr_x + (qr_img.size[0] - text_width) // 2, qr_y + qr_img.size[1] + 5),
-                     qr_label, font=font_small, fill=COLOR_BLACK)
+                      qr_label, font=font_small, fill=COLOR_BLACK)
 
         # Footer
         draw.rectangle([0, DISPLAY_HEIGHT - 40, DISPLAY_WIDTH, DISPLAY_HEIGHT], fill=COLOR_BLACK)
@@ -178,7 +202,7 @@ class ZivyObrazClient:
         bbox = draw.textbbox((0, 0), footer_text, font=font_small)
         text_width = bbox[2] - bbox[0]
         draw.text(((DISPLAY_WIDTH - text_width) // 2, DISPLAY_HEIGHT - 30),
-                 footer_text, font=font_small, fill=COLOR_WHITE)
+                  footer_text, font=font_small, fill=COLOR_WHITE)
 
         self.display_image(image)
         self.sleep_display()
@@ -380,7 +404,7 @@ class ZivyObrazClient:
                 for i in range(num_colors):
                     idx = palette_offset + i * 4
                     if idx + 4 <= len(data):
-                        b, g, r, _ = struct.unpack('BBBB', data[idx:idx+4])
+                        b, g, r, _ = struct.unpack('BBBB', data[idx:idx + 4])
                         # Convert to grayscale and determine if whitish
                         gray = (r + g + b) // 3
                         palette.append(COLOR_WHITE if gray > 0x80 else COLOR_BLACK)
@@ -610,7 +634,7 @@ class ZivyObrazClient:
                 if first_run:
                     try:
                         self.display_registration_info()
-                    except:
+                    except BaseException:
                         pass
                     first_run = False
                 time.sleep(DEFAULT_SLEEP_TIME)
